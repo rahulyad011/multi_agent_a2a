@@ -51,7 +51,8 @@ logs/
 .DS_Store
 
 # Streamlit
-.streamlit/
+.streamlit/secrets.toml
+.streamlit/cache/
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -76,6 +77,7 @@ dmypy.json
 cython_debug/
 
 # PID files
+.pids/
 *.pid
 
 # Temporary files

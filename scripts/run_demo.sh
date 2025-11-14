@@ -1,0 +1,48 @@
+#!/bin/bash
+# Legacy script - redirects to the new start_agents.sh script
+
+echo "=========================================="
+echo "  Multi-Agent A2A System"
+echo "=========================================="
+echo ""
+echo "⚠️  This script has been replaced with a better version!"
+echo ""
+echo "Please use the new script instead:"
+echo ""
+echo "  bash scripts/start_agents.sh"
+echo ""
+echo "The new script automatically:"
+echo "  ✓ Starts all agents (RAG, Image Caption, Orchestrator)"
+echo "  ✓ Tests each agent to ensure they're working"
+echo "  ✓ Shows orchestrator logs in the terminal"
+echo "  ✓ Handles cleanup on exit"
+echo ""
+echo "=========================================="
+echo ""
+read -p "Would you like to run the new script now? (y/n): " response
+
+if [[ "$response" =~ ^[Yy]$ ]]; then
+    echo ""
+    echo "Launching start_agents.sh..."
+    echo ""
+    exec bash "$(dirname "$0")/start_agents.sh"
+else
+    echo ""
+    echo "No problem! You can run it manually:"
+    echo "  bash scripts/start_agents.sh"
+    echo ""
+    echo "Or start agents individually:"
+    echo ""
+    echo "  # Terminal 1 - RAG Agent"
+    echo "  uv run src/agents/simple_rag/main.py"
+    echo ""
+    echo "  # Terminal 2 - Image Caption Agent"
+    echo "  uv run src/agents/image_caption/main.py"
+    echo ""
+    echo "  # Terminal 3 - Orchestrator"
+    echo "  uv run src/agents/orchestrator/main.py"
+    echo ""
+echo "  # Terminal 4 - Streamlit"
+echo "  uv run streamlit run app.py"
+    echo ""
+fi

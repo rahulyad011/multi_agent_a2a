@@ -7,7 +7,7 @@ from a2a.types import (
     AgentCard,
     AgentSkill,
 )
-from orchestrator_executor import OrchestratorAgentExecutor
+from src.agents.orchestrator.executor import OrchestratorAgentExecutor
 
 
 if __name__ == '__main__':

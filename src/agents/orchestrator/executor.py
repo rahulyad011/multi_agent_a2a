@@ -10,7 +10,7 @@ from a2a.types import (
     TaskStatusUpdateEvent,
 )
 from a2a.utils import new_text_artifact
-from orchestrator_agent import OrchestratorAgent
+from src.agents.orchestrator.agent import OrchestratorAgent
 
 
 class OrchestratorAgentExecutor(AgentExecutor):

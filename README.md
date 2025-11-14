@@ -1,388 +1,336 @@
-# Simple RAG Agent with Orchestrator
+# Simple RAG Agent - Multi-Agent System
 
-A demonstration of the A2A (Agent-to-Agent) protocol showing how an orchestrator agent can route queries to a specialized RAG (Retrieval Augmented Generation) agent using ChromaDB vector database.
+A multi-agent system demonstrating the A2A (Agent-to-Agent) protocol with RAG capabilities, image captioning, and intelligent orchestration.
 
-## Architecture
+## 🚀 Quick Start
 
-```
-User
-  |
-  v
-Test Client (A2A Client)
-  |
-  | A2A Protocol
-  v
-Orchestrator Agent (Port 10003)
-  |
-  | A2A Protocol (routes document queries)
-  v
-RAG Agent (Port 10002)
-  |
-  v
-ChromaDB Vector Database
-```
-
-## Components
-
-### 1. RAG Agent (Port 10002)
-- Uses **ChromaDB** vector database for document storage
-- Uses **sentence-transformers** for text embeddings
-- Pre-loaded with sample documents about:
-  - Python programming
-  - Machine Learning
-  - Vector Databases
-  - A2A Protocol
-  - ChromaDB
-- Provides semantic search over documents
-- Exposes A2A protocol interface
-
-**Files:**
-- `agent.py` - RAG agent logic with ChromaDB integration
-- `agent_executor.py` - A2A executor wrapper for the RAG agent
-- `__main__.py` - Server startup for RAG agent
-
-### 2. Orchestrator Agent (Port 10003)
-- Routes queries to appropriate agents
-- Uses simple keyword-based routing (can be enhanced with ML)
-- Communicates with RAG agent via **A2A protocol**
-- Routes document-related queries to RAG agent
-- Handles other queries directly
-
-**Files:**
-- `orchestrator_agent.py` - Orchestrator logic with A2A client
-- `orchestrator_executor.py` - A2A executor wrapper
-- `orchestrator_main.py` - Server startup for orchestrator
-
-### 3. Test Client
-- Command-line interface to interact with the orchestrator
-- Shows streaming responses in real-time
-- Includes debug output to trace A2A calls
-
-**Files:**
-- `test_client.py` - Interactive CLI client
-
-## Setup
-
-### Prerequisites
-- Python 3.10 or higher
-- `uv` package manager (or use `pip`)
-
-### Installation
-
-1. Navigate to the project directory:
+### Option 1: Quick Start (Recommended)
 ```bash
-cd samples/python/agents/simple_rag_agent
+# Terminal 1 - Start all agents (RAG, Image Caption, Orchestrator)
+bash scripts/start_agents.sh
+
+# Terminal 2 - Start Streamlit web interface
+uv run streamlit run app.py
 ```
 
-2. Install dependencies using `uv`:
+The script will:
+- ✅ Start RAG Agent (port 10002) in background
+- ✅ Start Image Caption Agent (port 10004) in background
+- ✅ Test each agent to ensure they're working
+- ✅ Start Orchestrator (port 10003) with visible logs
+- ✅ Provide clear status updates
+
+Open your browser to `http://localhost:8501` for the web interface!
+
+### Option 2: Manual Setup
+
+1. **Install Dependencies:**
 ```bash
 uv sync
 ```
 
-Or using pip:
-```bash
-pip install -r requirements.txt
-```
-
-The main dependencies are:
-- `a2a-sdk[http-server]` - A2A protocol implementation
-- `chromadb` - Vector database
-- `sentence-transformers` - Text embeddings
-- `httpx` - HTTP client for A2A communication
-- `uvicorn` - ASGI server
-
-## Running the Demo
-
-You need to run **two servers** (RAG Agent and Orchestrator) and then the client.
-
-### Terminal 1: Start the RAG Agent
+2. **Start the Agents** (in separate terminals):
 
 ```bash
-uv run .
+# Terminal 1 - RAG Agent
+uv run src/agents/simple_rag/main.py
+
+# Terminal 2 - Image Caption Agent
+uv run src/agents/image_caption/main.py
+
+# Terminal 3 - Orchestrator (keyword-based)
+uv run src/agents/orchestrator/main.py
+
+# Terminal 4 - Test Client or Streamlit
+uv run tests/test_client.py
+# or
+uv run streamlit run app.py
 ```
 
-You should see:
-```
-[DEBUG] Starting Simple RAG Agent server...
-[DEBUG] Initializing SimpleRAGAgent with persist_directory: ./chroma_db
-[DEBUG] Loading sentence transformer model...
-[DEBUG] Getting or creating Chroma collection 'documents'
-[DEBUG] Initializing with sample documents...
-============================================================
-Simple RAG Agent is running!
-Access the agent at: http://localhost:10002
-============================================================
-```
-
-### Terminal 2: Start the Orchestrator Agent
-
-```bash
-uv run orchestrator_main.py
-```
-
-You should see:
-```
-[DEBUG] Starting Orchestrator Agent server...
-============================================================
-Orchestrator Agent is running!
-Access the agent at: http://localhost:10003
-Note: Make sure RAG Agent is running on http://localhost:10002
-============================================================
-```
-
-### Terminal 3: Run the Test Client
-
-```bash
-uv run test_client.py
-```
-
-You should see:
-```
-======================================================================
-Welcome to the RAG Agent + Orchestrator Demo!
-======================================================================
-
-This demo shows A2A protocol in action:
-1. You interact with the Orchestrator Agent (port 10003)
-2. The Orchestrator routes document queries to RAG Agent (port 10002)
-3. Communication happens via A2A protocol
-...
-```
-
-## Example Queries
-
-### Queries that Route to RAG Agent (via A2A)
-
-These queries will be routed to the RAG agent via A2A protocol:
-
-```
-> What is Python?
-> Tell me about machine learning
-> Explain the A2A protocol
-> What is ChromaDB?
-> Describe vector databases
-```
-
-### Queries Handled Directly by Orchestrator
-
-These queries are handled by the orchestrator directly:
-
-```
-> What can you help me with?
-> Hello
-> Help me with something random
-```
-
-## Tracing A2A Calls
-
-The implementation includes extensive debug logging to help you trace A2A calls:
-
-### RAG Agent Logs
-```
-[DEBUG] RAGAgentExecutor.execute() called
-[DEBUG] Context ID: <id>
-[DEBUG] Task ID: <id>
-[DEBUG] User query: 'What is Python?'
-[DEBUG] RAG Agent querying for: 'What is Python?' (n_results=3)
-[DEBUG] Found 3 relevant documents
-[DEBUG] Streaming chunk: done=False, content_length=...
-```
-
-### Orchestrator Logs
-```
-[DEBUG] OrchestratorAgent processing query: 'What is Python?'
-[DEBUG] Determining routing for query: 'What is Python?'
-[DEBUG] Should route to RAG: True
-[DEBUG] ===== ROUTING TO RAG AGENT VIA A2A =====
-[DEBUG] Fetching agent card from http://localhost:10002
-[DEBUG] Agent card received: Simple RAG Agent
-[DEBUG] Sending streaming request to RAG agent via A2A
-[DEBUG] Request ID: <id>
-[DEBUG] Receiving streaming response from RAG agent
-[DEBUG] Chunk 1: forwarding 54 chars
-...
-[DEBUG] ===== A2A CALL COMPLETE =====
-```
-
-### Client Logs
-```
-[CLIENT DEBUG] Sending query to Orchestrator Agent...
-[CLIENT DEBUG] Receiving streaming response...
-
---- Response ---
-Based on the documents in my knowledge base, here's what I found:
-...
-[CLIENT DEBUG] Received 8 chunks
---- End Response ---
-```
-
-## Key A2A Concepts Demonstrated
-
-### 1. Agent Card
-Each agent exposes an agent card describing its capabilities:
-```python
-agent_card = AgentCard(
-    name='Simple RAG Agent',
-    description='A simple RAG agent...',
-    url='http://localhost:10002/',
-    capabilities=AgentCapabilities(streaming=True),
-    skills=[skill],
-)
-```
-
-### 2. A2A Client
-The orchestrator uses an A2A client to communicate with the RAG agent:
-```python
-# Fetch agent card
-resolver = A2ACardResolver(httpx_client, base_url)
-agent_card = await resolver.get_agent_card()
-
-# Create client
-client = A2AClient(httpx_client, agent_card=agent_card)
-
-# Send streaming message
-stream = client.send_message_streaming(request)
-async for chunk in stream:
-    # Process response chunks
-```
-
-### 3. A2A Server
-Both agents expose A2A server interfaces:
-```python
-server = A2AStarletteApplication(
-    agent_card=agent_card,
-    http_handler=request_handler
-)
-uvicorn.run(server.build(), host='0.0.0.0', port=10002)
-```
-
-### 4. Streaming Responses
-The demo shows streaming responses flowing through the A2A protocol:
-- Client sends query to Orchestrator
-- Orchestrator streams request to RAG agent via A2A
-- RAG agent streams back results via A2A
-- Orchestrator forwards stream to client
-
-## Project Structure
+## 📁 Project Structure
 
 ```
 simple_rag_agent/
-├── README.md                      # This file
-├── pyproject.toml                 # Project dependencies
-│
-├── agent.py                       # RAG agent with ChromaDB
-├── agent_executor.py              # A2A executor for RAG agent
-├── __main__.py                    # RAG agent server startup
-│
-├── orchestrator_agent.py          # Orchestrator with A2A client
-├── orchestrator_executor.py       # A2A executor for orchestrator
-├── orchestrator_main.py           # Orchestrator server startup
-│
-├── test_client.py                 # Interactive test client
-│
-└── chroma_db/                     # ChromaDB persistent storage (created at runtime)
+├── src/                          # Source code
+│   ├── agents/                   # All agent implementations
+│   │   ├── simple_rag/          # Simple RAG Agent
+│   │   │   ├── agent.py         # RAG Agent implementation
+│   │   │   ├── executor.py      # RAG Agent executor
+│   │   │   └── main.py          # RAG Agent server entry point
+│   │   ├── orchestrator/        # Orchestrator Agent
+│   │   │   ├── agent.py         # Keyword-based orchestrator
+│   │   │   ├── agent_host.py    # LLM-based host orchestrator
+│   │   │   ├── executor.py      # Keyword-based executor
+│   │   │   ├── executor_host.py # LLM-based executor
+│   │   │   ├── main.py          # Keyword-based server
+│   │   │   └── main_host.py     # LLM-based server
+│   │   └── image_caption/       # Image Captioning Agent
+│   │       ├── agent.py         # Image caption agent
+│   │       ├── executor.py      # Image caption executor
+│   │       └── main.py          # Image caption server
+│   └── utils/                   # Shared utilities
+│       └── remote_connection.py # Remote agent connection helper
+├── tests/                       # Test files
+│   └── test_client.py          # Interactive test client
+├── scripts/                     # Shell scripts and utilities
+│   ├── start_agents.sh         # Start all agents (recommended)
+│   ├── stop_agents.sh          # Stop all agents
+│   ├── run_streamlit.sh        # Launch Streamlit
+│   └── run_demo.sh             # Legacy script
+├── docs/                        # (Empty - reserved for future docs)
+├── chroma_db/                   # Persistent ChromaDB data
+├── __main__.py                  # Default entry point (runs RAG agent)
+├── pyproject.toml              # Project configuration
+└── uv.lock                     # Dependency lock file
 ```
 
-## How It Works
+## 🎯 Components
 
-### 1. Initialization
-- RAG agent starts on port 10002, initializes ChromaDB, loads sample documents
-- Orchestrator starts on port 10003, configured to connect to RAG agent
+### 1. Simple RAG Agent (Port 10002)
+- **Purpose**: Document storage and retrieval using ChromaDB
+- **Features**: Vector similarity search, pre-loaded sample documents
+- **Entry Point**: `uv run src/agents/simple_rag/main.py`
 
-### 2. Query Processing
-- User sends query to orchestrator via test client
-- Orchestrator analyzes query using keyword matching
-- If query is document-related:
-  - Orchestrator creates A2A client connection to RAG agent
-  - Sends query via A2A protocol (JSON-RPC over HTTP)
-  - RAG agent queries ChromaDB vector database
-  - RAG agent streams results back via A2A
-  - Orchestrator forwards stream to user
-- If query is not document-related:
-  - Orchestrator handles directly without A2A call
+### 2. Orchestrator Agent (Port 10003)
+Two implementations available:
 
-### 3. Vector Search (in RAG Agent)
-- Query text is converted to embedding using sentence-transformers
-- Embedding is compared against stored document embeddings
-- Top K most similar documents are retrieved
-- Results are formatted and streamed back
+**Keyword-based** (`agent.py`, `main.py`):
+- Simple heuristic routing based on keywords
+- No API keys required
+- Entry: `uv run src/agents/orchestrator/main.py`
 
-## Customization
+**LLM-based** (`agent_host.py`, `main_host.py`):
+- Intelligent routing using LiteLLM
+- Requires API key (Google/OpenAI)
+- Entry: `uv run src/agents/orchestrator/main_host.py`
 
-### Add Your Own Documents
+Routes queries to appropriate specialized agents via A2A protocol.
 
-Edit `agent.py` and modify the `initialize_with_sample_docs()` method:
+### 3. Image Caption Agent (Port 10004)
+- **Purpose**: Generate descriptive captions for images
+- **Model**: BLIP (Salesforce/blip-image-captioning-base)
+- **Entry Point**: `uv run src/agents/image_caption/main.py`
+
+### 4. Test Interfaces
+
+**CLI Test Client:**
+- **Purpose**: Interactive command-line client to test the orchestrator
+- **Entry Point**: `uv run tests/test_client.py`
+- **Features**: Text-based interaction, streaming console output
+
+**Streamlit Web App:**
+- **Purpose**: Beautiful web interface for testing and demos
+- **Entry Point**: `uv run streamlit run app.py` or `bash scripts/run_streamlit.sh`
+- **URL**: http://localhost:8501
+- **Features**: 
+  - Modern chat interface with message history
+  - One-click example queries for RAG and image captioning
+  - Visual connection status and agent information
+  - Optional debug mode for troubleshooting
+  - Architecture overview display
+  - Real-time streaming responses
+
+## 🛠️ Running Individual Components
+
+```bash
+# RAG Agent only
+uv run src/agents/simple_rag/main.py
+
+# Image Caption Agent only
+uv run src/agents/image_caption/main.py
+
+# Orchestrator (keyword-based)
+uv run src/agents/orchestrator/main.py
+
+# Orchestrator (LLM-based, requires API key)
+uv run src/agents/orchestrator/main_host.py
+
+# Test Client (CLI)
+uv run tests/test_client.py
+
+# Streamlit Web App
+uv run streamlit run app.py
+
+# Default entry point (runs RAG Agent)
+uv run .
+```
+
+## 🧪 Example Usage
+
+### Using the Streamlit Web App (Recommended)
+
+1. **Start all agents**: `bash scripts/start_agents.sh`
+   - This starts RAG Agent, Image Caption Agent, and Orchestrator
+   - Health checks ensure all agents are working
+   - Orchestrator logs will be visible in this terminal
+2. **Launch Streamlit** (in a new terminal): `uv run streamlit run app.py`
+3. **Open browser**: Navigate to http://localhost:8501
+4. **Connect**: Click "🔌 Connect" button
+5. **Try example queries**: Click any example in the sidebar or type your own
+
+The Streamlit app provides:
+- Visual chat interface with full history
+- Pre-loaded example queries you can click
+- Connection status monitoring
+- Debug mode for troubleshooting
+
+### Using the CLI Test Client
+
+Once all agents are running, try these queries in the test client:
+
+**Document Search:**
+```
+> What is Python?
+> Tell me about machine learning
+> Explain vector databases
+> What is the A2A protocol?
+```
+
+**Image Captioning:**
+```
+> caption: /path/to/your/image.jpg
+> /Users/username/Pictures/photo.png
+> describe: ~/Downloads/sunset.jpg
+```
+
+## 💻 Import Structure
+
+All imports use absolute paths from `src`:
 
 ```python
-sample_docs = [
-    {
-        'text': 'Your document text here...',
-        'metadata': {'topic': 'Your Topic', 'category': 'Category'}
-    },
-    # Add more documents...
-]
+# Agent imports
+from src.agents.simple_rag.agent import SimpleRAGAgent
+from src.agents.orchestrator.agent import OrchestratorAgent
+from src.agents.image_caption.agent import ImageCaptioningAgent
+
+# Executor imports
+from src.agents.simple_rag.executor import SimpleRAGAgentExecutor
+from src.agents.orchestrator.executor import OrchestratorAgentExecutor
+from src.agents.image_caption.executor import ImageCaptioningAgentExecutor
+
+# Utility imports
+from src.utils.remote_connection import RemoteAgentConnection
 ```
 
-### Change Routing Logic
+## 📦 Requirements
 
-Edit `orchestrator_agent.py` and modify the `should_route_to_rag()` method:
+- Python 3.10+
+- uv (package manager)
+- Dependencies listed in `pyproject.toml`
 
-```python
-def should_route_to_rag(self, query: str) -> bool:
-    # Implement your own routing logic
-    # Could use ML classifier, LLM, or other heuristics
-    pass
+### Key Dependencies:
+- `chromadb` - Vector database
+- `sentence-transformers` - Text embeddings
+- `transformers` & `torch` - Image captioning
+- `a2a` - Agent-to-Agent protocol
+- `litellm` - LLM orchestration (optional)
+- `streamlit` - Web interface for testing
+
+## 🔑 API Keys (for LLM-based Orchestrator)
+
+Set environment variables for LLM access:
+```bash
+export GOOGLE_API_KEY="your-key"
+# OR
+export OPENAI_API_KEY="your-key"
 ```
 
-### Adjust Ports
+Or create a `.env` file in the project root:
+```bash
+GOOGLE_API_KEY=your-key-here
+```
 
-- RAG Agent: Change port in `__main__.py` (default 10002)
-- Orchestrator: Change port in `orchestrator_main.py` (default 10003)
-- Update URLs in both orchestrator and client accordingly
 
-## Troubleshooting
+## 🏗️ Architecture Benefits
 
-### "Could not connect to RAG agent"
-- Ensure RAG agent is running on port 10002
-- Check if port is already in use: `lsof -i :10002`
+1. **Clear Separation of Concerns** - Each agent has its own directory
+2. **Modular Design** - Easy to add new agents or utilities
+3. **Better Organization** - Documentation, tests, and scripts are separated
+4. **Scalability** - Easy to navigate and maintain as the project grows
+5. **Standard Python Layout** - Follows Python best practices
+6. **Clean Imports** - Explicit import paths are more maintainable
 
-### "Could not connect to orchestrator"
-- Ensure orchestrator is running on port 10003
-- Check if port is already in use: `lsof -i :10003`
+## 🔄 Migration Notes
 
-### ChromaDB Issues
-- Delete `chroma_db/` directory and restart to reset database
-- Ensure sufficient disk space for ChromaDB
+This project has been restructured for better organization. Key changes:
 
-### Dependency Issues
-- Ensure Python 3.10+ is installed
-- Try: `uv sync --reinstall` to reinstall dependencies
+**Old Structure → New Structure:**
+- Root-level agent files → `src/agents/{agent_name}/`
+- Documentation files → `docs/`
+- Test files → `tests/`
+- Scripts → `scripts/`
 
-## Learning Points
+All imports updated from relative to absolute paths using `src` as the base package.
 
-This demo illustrates:
-1. **A2A Protocol**: Agent-to-agent communication using standardized protocol
-2. **RAG Architecture**: Retrieval Augmented Generation with vector databases
-3. **Orchestration Pattern**: Routing queries to specialized agents
-4. **Streaming**: Real-time streaming responses through multiple agents
-5. **Debug Tracing**: Understanding the flow of A2A calls
+## 📄 License
 
-## Next Steps
+See the main repository for license information.
 
-- Add more agents (e.g., calculator, weather, web search)
-- Implement smarter routing using LLMs
-- Add authentication/security
-- Deploy agents to different machines
-- Add monitoring and observability
-- Implement more sophisticated RAG (reranking, hybrid search, etc.)
+## 🤝 Contributing
 
-## License
+This is a sample project demonstrating the A2A protocol. Feel free to extend and modify for your use case.
 
-This project is licensed under the terms of the Apache 2.0 License.
+## 🛠️ Utility Scripts
 
-## Disclaimer
+The project includes helpful scripts in the `scripts/` directory:
 
-**Important**: The sample code provided is for demonstration purposes and illustrates the mechanics of the Agent-to-Agent (A2A) protocol. When building production applications, it is critical to treat any agent operating outside of your direct control as a potentially untrusted entity.
+- **`start_agents.sh`** - Start all agents with health checks (recommended)
+- **`stop_agents.sh`** - Stop all running agents
+- **`run_streamlit.sh`** - Launch Streamlit with agent status checks
+- **`run_demo.sh`** - Legacy script (redirects to start_agents.sh)
 
-All data received from an external agent—including but not limited to its AgentCard, messages, artifacts, and task statuses—should be handled as untrusted input. Developers are responsible for implementing appropriate security measures, such as input validation and secure handling of credentials to protect their systems and users.
+## 🆘 Troubleshooting
 
+### General Issues
+
+**Port already in use:**
+```bash
+# Easy way - use the stop script
+bash scripts/stop_agents.sh
+
+# Manual way - check and kill processes
+lsof -i :10002  # RAG Agent
+lsof -i :10003  # Orchestrator
+lsof -i :10004  # Image Caption Agent
+lsof -i :8501   # Streamlit
+
+# Kill specific process
+kill -9 <PID>
+```
+
+**Import errors:**
+Make sure you're running from the project root directory.
+
+**ChromaDB persistence issues:**
+Delete the `chroma_db/` directory to reset the vector database.
+
+### Streamlit App Issues
+
+**Connection failed:**
+1. Verify orchestrator is running on port 10003
+2. Check the URL is correct (default: http://localhost:10003)
+3. Ensure no firewall is blocking the connection
+
+**Streamlit port 8501 busy:**
+```bash
+streamlit run app.py --server.port 8502
+```
+
+**Agents not responding:**
+1. Verify all agents are running (check ports 10002, 10003, 10004)
+2. Enable debug mode in Streamlit sidebar for more details
+3. Try clicking "🔄 Reset" and reconnecting
+
+**Event loop errors:**
+If you see event loop related errors, restart the Streamlit app:
+```bash
+# Press Ctrl+C to stop, then restart
+uv run streamlit run app.py
+```
+
+**Slow first image caption:**
+This is normal - the BLIP model needs to load into memory on first use. Subsequent requests will be faster.
+
+---
+
+**Note:** This project demonstrates the A2A (Agent-to-Agent) protocol with multiple specialized agents communicating through a central orchestrator. Each agent can be run independently or as part of the multi-agent system.

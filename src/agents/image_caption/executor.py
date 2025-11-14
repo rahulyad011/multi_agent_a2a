@@ -1,4 +1,4 @@
-"""Agent Executor for the Simple RAG Agent."""
+"""Agent Executor for the Image Captioning Agent."""
 from typing import override
 
 from a2a.server.agent_execution import AgentExecutor, RequestContext
@@ -10,19 +10,17 @@ from a2a.types import (
     TaskStatusUpdateEvent,
 )
 from a2a.utils import new_text_artifact
-from agent import SimpleRAGAgent
+from src.agents.image_caption.agent import ImageCaptioningAgent
 
 
-class SimpleRAGAgentExecutor(AgentExecutor):
-    """Executor for the Simple RAG Agent."""
+class ImageCaptioningAgentExecutor(AgentExecutor):
+    """Executor for the Image Captioning Agent."""
     
     def __init__(self):
-        """Initialize the executor with the RAG agent."""
-        print("[DEBUG] Initializing SimpleRAGAgentExecutor")
-        self.agent = SimpleRAGAgent()
-        # Initialize with sample documents if empty
-        self.agent.initialize_with_sample_docs()
-        print("[DEBUG] SimpleRAGAgentExecutor ready")
+        """Initialize the executor with the image captioning agent."""
+        print("[DEBUG] Initializing ImageCaptioningAgentExecutor")
+        self.agent = ImageCaptioningAgent()
+        print("[DEBUG] ImageCaptioningAgentExecutor ready")
     
     @override
     async def execute(
@@ -30,13 +28,13 @@ class SimpleRAGAgentExecutor(AgentExecutor):
         context: RequestContext,
         event_queue: EventQueue,
     ) -> None:
-        """Execute the RAG agent with the given context.
+        """Execute the image captioning agent with the given context.
         
         Args:
             context: Request context containing the user query
             event_queue: Queue for sending events back to the client
         """
-        print(f"[DEBUG] RAGAgentExecutor.execute() called")
+        print(f"[DEBUG] ImageCaptionExecutor.execute() called")
         print(f"[DEBUG] Context ID: {context.context_id}")
         print(f"[DEBUG] Task ID: {context.task_id}")
         
@@ -47,8 +45,8 @@ class SimpleRAGAgentExecutor(AgentExecutor):
             print("[DEBUG] ERROR: No message provided in context")
             raise Exception('No message provided')
         
-        # Stream response from RAG agent
-        print("[DEBUG] Starting to stream response from RAG agent")
+        # Stream response from image captioning agent
+        print("[DEBUG] Starting to stream response from image captioning agent")
         async for event in self.agent.stream_response(query):
             print(f"[DEBUG] Streaming chunk: done={event['done']}, content_length={len(event['content'])}")
             
@@ -57,7 +55,7 @@ class SimpleRAGAgentExecutor(AgentExecutor):
                 context_id=context.context_id,  # type: ignore
                 task_id=context.task_id,  # type: ignore
                 artifact=new_text_artifact(
-                    name='rag_result',
+                    name='image_caption_result',
                     text=event['content'],
                 ),
             )
@@ -76,13 +74,13 @@ class SimpleRAGAgentExecutor(AgentExecutor):
             final=True,
         )
         await event_queue.enqueue_event(status)
-        print("[DEBUG] RAGAgentExecutor.execute() finished")
+        print("[DEBUG] ImageCaptionExecutor.execute() finished")
     
     @override
     async def cancel(
         self, context: RequestContext, event_queue: EventQueue
     ) -> None:
         """Cancel the current task (not supported)."""
-        print("[DEBUG] RAGAgentExecutor.cancel() called - not supported")
+        print("[DEBUG] ImageCaptionExecutor.cancel() called - not supported")
         raise Exception('cancel not supported')
 
