@@ -25,12 +25,25 @@ Open your browser to `http://localhost:8501` for the web interface!
 ### Option 2: Manual Setup
 
 1. **Install Dependencies:**
+
+**Using UV (recommended):**
 ```bash
 uv sync
 ```
 
+**Using pip:**
+```bash
+# Create virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
 2. **Start the Agents** (in separate terminals):
 
+**Using UV:**
 ```bash
 # Terminal 1 - RAG Agent
 uv run src/agents/simple_rag/main.py
@@ -45,6 +58,23 @@ uv run src/agents/orchestrator/main.py
 uv run tests/test_client.py
 # or
 uv run streamlit run app.py
+```
+
+**Using pip:**
+```bash
+# Terminal 1 - RAG Agent
+python src/agents/simple_rag/main.py
+
+# Terminal 2 - Image Caption Agent
+python src/agents/image_caption/main.py
+
+# Terminal 3 - Orchestrator (keyword-based)
+python src/agents/orchestrator/main.py
+
+# Terminal 4 - Test Client or Streamlit
+python tests/test_client.py
+# or
+streamlit run app.py
 ```
 
 ## 📁 Project Structure
@@ -132,6 +162,7 @@ Routes queries to appropriate specialized agents via A2A protocol.
 
 ## 🛠️ Running Individual Components
 
+**Using UV:**
 ```bash
 # RAG Agent only
 uv run src/agents/simple_rag/main.py
@@ -153,6 +184,27 @@ uv run streamlit run app.py
 
 # Default entry point (runs RAG Agent)
 uv run .
+```
+
+**Using pip:**
+```bash
+# RAG Agent only
+python src/agents/simple_rag/main.py
+
+# Image Caption Agent only
+python src/agents/image_caption/main.py
+
+# Orchestrator (keyword-based)
+python src/agents/orchestrator/main.py
+
+# Orchestrator (LLM-based, requires API key)
+python src/agents/orchestrator/main_host.py
+
+# Test Client (CLI)
+python tests/test_client.py
+
+# Streamlit Web App
+streamlit run app.py
 ```
 
 ## 🧪 Example Usage
@@ -215,16 +267,38 @@ from src.utils.remote_connection import RemoteAgentConnection
 ## 📦 Requirements
 
 - Python 3.10+
-- uv (package manager)
-- Dependencies listed in `pyproject.toml`
+- Package manager: **uv** (recommended) or **pip**
+- Dependencies listed in `pyproject.toml` or `requirements.txt`
+
+### Installation Options
+
+**Option 1: Using UV (recommended)**
+```bash
+# Install UV if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install dependencies
+uv sync
+```
+
+**Option 2: Using pip**
+```bash
+# Create virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
 
 ### Key Dependencies:
 - `chromadb` - Vector database
 - `sentence-transformers` - Text embeddings
 - `transformers` & `torch` - Image captioning
 - `a2a` - Agent-to-Agent protocol
-- `litellm` - LLM orchestration (optional)
+- `litellm` - LLM orchestration
 - `streamlit` - Web interface for testing
+- `oci` & `langchain-oci` - OCI GenAI support (optional)
 
 ## 🔑 API Keys (for LLM-based Orchestrator)
 
