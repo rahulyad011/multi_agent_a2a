@@ -48,9 +48,33 @@ if __name__ == '__main__':
     print(f"[DEBUG] Agent URL: {agent_card.url}")
     print(f"[DEBUG] Streaming enabled: {agent_card.capabilities.streaming}")
     
-    # Get model name from environment or use default
+    # Check if OCI GenAI is configured
+    llm_callable = None
     model_name = os.getenv('LITELLM_MODEL', 'gemini/gemini-2.0-flash-001')
-    print(f"[DEBUG] LLM Model: {model_name}")
+    
+    # If OCI environment variables are set, use OCI GenAI
+    if os.getenv('OCI_COMPARTMENT_ID') and os.getenv('OCI_GENAI_ENDPOINT'):
+        try:
+            import oci
+            from src.utils.oci_llm import configure_llm_chat
+            
+            # Load OCI config
+            oci_config = oci.config.from_file()
+            
+            # Configure OCI GenAI LLM
+            llm_callable = configure_llm_chat(
+                config=oci_config,
+                model_id=os.getenv('OCI_MODEL_ID', 'cohere.command-r-plus'),
+                service_endpoint=os.getenv('OCI_GENAI_ENDPOINT'),
+                compartment_id=os.getenv('OCI_COMPARTMENT_ID'),
+                max_tokens=int(os.getenv('OCI_MAX_TOKENS', '2000'))
+            )
+            print(f"[DEBUG] Using OCI GenAI: {os.getenv('OCI_MODEL_ID', 'cohere.command-r-plus')}")
+        except Exception as e:
+            print(f"[DEBUG] Warning: Could not configure OCI GenAI: {e}")
+            print(f"[DEBUG] Falling back to LiteLLM with model: {model_name}")
+    else:
+        print(f"[DEBUG] LLM Model: {model_name}")
     
     # Configure remote agents
     remote_agent_urls = [
@@ -65,6 +89,7 @@ if __name__ == '__main__':
         agent_executor=HostOrchestratorExecutor(
             remote_agent_urls=remote_agent_urls,
             model_name=model_name,
+            llm_callable=llm_callable,
         ),
         task_store=InMemoryTaskStore(),
     )
@@ -83,7 +108,10 @@ if __name__ == '__main__':
     print("Access the agent at: http://localhost:10003")
     print("")
     print("🧠 Using LLM for intelligent routing")
-    print(f"   Model: {model_name}")
+    if llm_callable:
+        print(f"   Provider: OCI GenAI ({os.getenv('OCI_MODEL_ID', 'cohere.command-r-plus')})")
+    else:
+        print(f"   Model: {model_name}")
     print("")
     print("🔗 Connected Agents (A2A Protocol):")
     print("   • RAG Agent: http://localhost:10002")

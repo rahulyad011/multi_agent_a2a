@@ -21,12 +21,14 @@ class HostOrchestratorExecutor(AgentExecutor):
         self,
         remote_agent_urls: list[str],
         model_name: str | None = None,
+        llm_callable=None,
     ):
         """Initialize the executor with the host orchestrator.
         
         Args:
             remote_agent_urls: List of URLs for remote A2A agents
             model_name: Optional LLM model name
+            llm_callable: Optional custom LLM callable (e.g., ChatOCIGenAI instance)
         """
         print("[DEBUG] Initializing HostOrchestratorExecutor")
         print(f"[DEBUG] Remote agent URLs: {remote_agent_urls}")
@@ -39,6 +41,7 @@ class HostOrchestratorExecutor(AgentExecutor):
             remote_agent_urls=remote_agent_urls,
             httpx_client=self.httpx_client,
             model_name=model_name,
+            llm_callable=llm_callable,
         )
         
         print("[DEBUG] HostOrchestratorExecutor initialized")

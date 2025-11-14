@@ -36,6 +36,7 @@ class HostOrchestrator:
         remote_agent_urls: list[str],
         httpx_client: httpx.AsyncClient | None = None,
         model_name: str | None = None,
+        llm_callable=None,
     ):
         """Initialize the host orchestrator.
         
@@ -43,6 +44,8 @@ class HostOrchestrator:
             remote_agent_urls: List of URLs for remote A2A agents
             httpx_client: Optional httpx client (will create if None)
             model_name: Optional LLM model name (defaults to gemini-2.0-flash)
+            llm_callable: Optional custom LLM callable (e.g., ChatOCIGenAI instance)
+                         If provided, this will be used instead of LiteLLM
         """
         print("[DEBUG] Initializing HostOrchestrator")
         print(f"[DEBUG] Remote agent URLs: {remote_agent_urls}")
@@ -66,8 +69,13 @@ class HostOrchestrator:
         self.agents_info: str = ''
         
         # Model configuration
+        self.llm_callable = llm_callable
         self.model_name = model_name or os.getenv('LITELLM_MODEL', 'gemini/gemini-2.0-flash-001')
-        print(f"[DEBUG] Using LLM model: {self.model_name}")
+        
+        if self.llm_callable:
+            print("[DEBUG] Using custom LLM callable (e.g., OCI GenAI)")
+        else:
+            print(f"[DEBUG] Using LLM model: {self.model_name}")
         
         # Store URLs for lazy initialization
         self.remote_agent_urls = remote_agent_urls
@@ -75,6 +83,55 @@ class HostOrchestrator:
         
         print("[DEBUG] HostOrchestrator initialized")
         print("[DEBUG] Note: Remote agents will be discovered on first use")
+
+    async def _call_llm(self, messages: list[dict], temperature: float = 0.3, stream: bool = False):
+        """Call LLM - either custom callable or LiteLLM.
+        
+        Args:
+            messages: List of message dicts with 'role' and 'content'
+            temperature: Temperature for generation
+            stream: Whether to stream the response
+            
+        Returns:
+            Response object or async generator
+        """
+        if self.llm_callable:
+            # Use custom LLM (e.g., ChatOCIGenAI)
+            # Convert messages format for LangChain
+            from langchain_core.messages import HumanMessage, SystemMessage
+            
+            langchain_messages = []
+            for msg in messages:
+                if msg['role'] == 'system':
+                    langchain_messages.append(SystemMessage(content=msg['content']))
+                elif msg['role'] == 'user':
+                    langchain_messages.append(HumanMessage(content=msg['content']))
+            
+            if stream:
+                # Return async generator for streaming
+                async def stream_response():
+                    async for chunk in self.llm_callable.astream(langchain_messages):
+                        yield chunk
+                return stream_response()
+            else:
+                # Return single response
+                response = await self.llm_callable.ainvoke(langchain_messages)
+                # Create a simple response object that matches LiteLLM format
+                class SimpleResponse:
+                    def __init__(self, content):
+                        self.choices = [type('obj', (object,), {'message': type('obj', (object,), {'content': content})()})()]
+                
+                return SimpleResponse(response.content)
+        else:
+            # Use LiteLLM
+            params = {
+                "model": self.model_name,
+                "messages": messages,
+                "temperature": temperature,
+            }
+            if stream:
+                params["stream"] = True
+            return await acompletion(**params)
 
     async def ensure_agents_initialized(self):
         """Ensure remote agents are initialized (lazy initialization)."""
@@ -205,12 +262,7 @@ Respond ONLY with a JSON object in this exact format:
                 {"role": "user", "content": query}
             ]
             
-            response = await acompletion(
-                model=self.model_name,
-                messages=messages,
-                temperature=0.3,
-            )
-            
+            response = await self._call_llm(messages, temperature=0.3)
             llm_response = response.choices[0].message.content
             print(f"[DEBUG] LLM response: {llm_response}")
             
@@ -398,21 +450,25 @@ Please provide a clear, well-formatted summary of this information that directly
             ]
             
             # Stream LLM response
-            response = await acompletion(
-                model=self.model_name,
-                messages=messages,
-                temperature=0.7,
-                stream=True,  # Enable streaming
-            )
-            
             print(f"[DEBUG] Streaming LLM summarization...")
             
-            async for chunk in response:
-                if chunk.choices and len(chunk.choices) > 0:
-                    delta_content = chunk.choices[0].delta.content
-                    if delta_content:
-                        print(f"[DEBUG] LLM chunk: {len(delta_content)} chars")
-                        yield {'content': delta_content, 'done': False}
+            response = await self._call_llm(messages, temperature=0.7, stream=True)
+            
+            if self.llm_callable:
+                # Custom LLM streaming (LangChain format)
+                async for chunk in response:
+                    content = chunk.content if hasattr(chunk, 'content') else str(chunk)
+                    if content:
+                        print(f"[DEBUG] LLM chunk: {len(content)} chars")
+                        yield {'content': content, 'done': False}
+            else:
+                # LiteLLM streaming
+                async for chunk in response:
+                    if chunk.choices and len(chunk.choices) > 0:
+                        delta_content = chunk.choices[0].delta.content
+                        if delta_content:
+                            print(f"[DEBUG] LLM chunk: {len(delta_content)} chars")
+                            yield {'content': delta_content, 'done': False}
             
             # Send final done signal
             yield {'content': '', 'done': True}
