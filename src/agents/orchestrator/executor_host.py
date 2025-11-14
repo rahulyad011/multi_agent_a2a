@@ -80,9 +80,11 @@ class HostOrchestratorExecutor(AgentExecutor):
         
         try:
             # Use host orchestrator to route query with LLM
+            # Pass the original message to preserve image parts
             print("[DEBUG] Calling host.route_query()...")
+            original_message = context.message if context.message else None
             
-            async for event in self.host.route_query(query):
+            async for event in self.host.route_query(query, original_message=original_message):
                 print(f"[DEBUG] Streaming chunk: done={event['done']}, content_length={len(event['content'])}")
                 
                 # Stream to client

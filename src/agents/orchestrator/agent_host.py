@@ -3,7 +3,7 @@ import asyncio
 import json
 import os
 import uuid
-from typing import Any, AsyncGenerator
+from typing import Any, AsyncGenerator, Optional
 
 import httpx
 from litellm import acompletion
@@ -234,11 +234,12 @@ Respond ONLY with a JSON object in this exact format:
 - If no agent is appropriate, use "none"
 """
 
-    async def route_query(self, query: str) -> AsyncGenerator[dict[str, Any], None]:
+    async def route_query(self, query: str, original_message: Optional[Message] = None) -> AsyncGenerator[dict[str, Any], None]:
         """Route a query to the appropriate agent using LLM.
         
         Args:
             query: User query
+            original_message: Optional original message with all parts (including images)
             
         Yields:
             Response chunks with 'content' and 'done' keys
@@ -288,8 +289,8 @@ Respond ONLY with a JSON object in this exact format:
             if agent_name and agent_name != "none" and agent_name in self.remote_agent_connections:
                 print(f"[DEBUG] ===== ROUTING TO {agent_name} VIA A2A =====")
                 
-                # Send message to agent
-                async for chunk in self._send_to_agent(agent_name, query):
+                # Send message to agent (forward original message if available)
+                async for chunk in self._send_to_agent(agent_name, query, original_message=original_message):
                     yield chunk
             else:
                 print("[DEBUG] No appropriate agent found or LLM chose 'none'")
@@ -314,12 +315,13 @@ Respond ONLY with a JSON object in this exact format:
             yield {'content': error_msg, 'done': False}
             yield {'content': '', 'done': True}
     
-    async def _send_to_agent(self, agent_name: str, query: str) -> AsyncGenerator[dict[str, Any], None]:
+    async def _send_to_agent(self, agent_name: str, query: str, original_message: Optional[Message] = None) -> AsyncGenerator[dict[str, Any], None]:
         """Send a query to a specific agent, collect response, and use LLM to summarize.
         
         Args:
             agent_name: Name of the target agent
             query: Query to send
+            original_message: Optional original message with all parts (to preserve images, etc.)
             
         Yields:
             Response chunks (LLM-summarized)
@@ -329,13 +331,24 @@ Respond ONLY with a JSON object in this exact format:
         # Get client connection
         client = self.remote_agent_connections[agent_name]
         
-        # Create A2A message
+        # Create A2A message - use original message parts if available, otherwise create new
         message_id = str(uuid.uuid4())
-        request_message = Message(
-            role=Role.user,
-            parts=[Part(root=TextPart(text=query))],
-            message_id=message_id,
-        )
+        if original_message and original_message.parts:
+            # Forward all parts from original message (preserves images, etc.)
+            print(f"[DEBUG] Forwarding original message with {len(original_message.parts)} parts")
+            request_message = Message(
+                role=Role.user,
+                parts=original_message.parts,  # Forward all parts
+                message_id=message_id,
+            )
+        else:
+            # Create new message with just text
+            print("[DEBUG] Creating new message with text only")
+            request_message = Message(
+                role=Role.user,
+                parts=[Part(root=TextPart(text=query))],
+                message_id=message_id,
+            )
         
         print(f"[DEBUG] Sending A2A message (ID: {message_id})...")
         

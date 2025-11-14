@@ -1,12 +1,23 @@
 """Streamlit app for testing the Multi-Agent Orchestrator system."""
 import asyncio
+import base64
+import io
 from typing import Any, Optional
 from uuid import uuid4
 
 import httpx
 import streamlit as st
+from PIL import Image
 from a2a.client import A2ACardResolver, A2AClient
-from a2a.types import MessageSendParams, SendStreamingMessageRequest
+from a2a.types import (
+    DataPart,
+    Message,
+    MessageSendParams,
+    Part,
+    Role,
+    SendStreamingMessageRequest,
+    TextPart,
+)
 
 
 # Helper function to run async code in Streamlit
@@ -128,6 +139,10 @@ def initialize_session_state():
         st.session_state.httpx_client = None
     if 'show_debug' not in st.session_state:
         st.session_state.show_debug = False
+    if 'uploaded_image' not in st.session_state:
+        st.session_state.uploaded_image = None
+    if 'uploader_key' not in st.session_state:
+        st.session_state.uploader_key = 0
 
 
 def get_response_text(chunk) -> str:
@@ -189,11 +204,12 @@ async def connect_to_orchestrator(orchestrator_url: str) -> tuple[bool, Optional
         return False, f"Failed to initialize client: {str(e)}"
 
 
-async def send_query(query: str) -> str:
+async def send_query(query: str, image: Image.Image | None = None) -> str:
     """Send a query to the orchestrator and return the response.
     
     Args:
         query: User query text
+        image: Optional PIL Image object to send with the query
         
     Returns:
         Response text from the agent
@@ -202,19 +218,42 @@ async def send_query(query: str) -> str:
         return "Error: Not connected to orchestrator"
     
     try:
-        # Create message payload
-        send_message_payload: dict[str, Any] = {
-            'message': {
-                'role': 'user',
-                'parts': [{'type': 'text', 'text': query}],
-                'messageId': uuid4().hex,
-            },
-        }
+        # Build message parts using proper A2A types
+        parts = [Part(root=TextPart(text=query))]
+        
+        # Add image if provided
+        if image is not None:
+            # Convert image to base64
+            buffer = io.BytesIO()
+            image.save(buffer, format='PNG')
+            image_bytes = buffer.getvalue()
+            image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+            
+            # DataPart.data expects a dictionary with mime_type and data
+            data_dict = {
+                "mime_type": "image/png",
+                "data": image_base64
+            }
+            
+            # Add image part using DataPart
+            parts.append(Part(root=DataPart(data=data_dict)))
+        
+        # Create message payload using proper A2A types
+        message = Message(
+            role=Role.user,
+            parts=parts,
+            message_id=uuid4().hex,
+        )
+        
+        send_message_payload = MessageSendParams(
+            id=uuid4().hex,
+            message=message
+        )
         
         # Create streaming request
         streaming_request = SendStreamingMessageRequest(
             id=uuid4().hex,
-            params=MessageSendParams(**send_message_payload)
+            params=send_message_payload
         )
         
         # Stream response
@@ -308,11 +347,11 @@ def render_sidebar():
             if st.button(f"📄 {example}", key=f"doc_{example}", use_container_width=True):
                 st.session_state.example_query = example
         
-        st.markdown("**Image Captioning:**")
+        st.markdown("**Image Analysis:**")
         img_examples = [
-            "caption: images/image1.png",
-            "What can you do?",
-            "Help me understand your capabilities"
+            "What is in this image?",
+            "Describe this image",
+            "Caption this image"
         ]
         for example in img_examples:
             if st.button(f"📷 {example}", key=f"img_{example}", use_container_width=True):
@@ -334,9 +373,10 @@ def render_sidebar():
             
             4. **View responses** in the chat interface
             
-            **For image captioning**, provide the full path:
-            - `caption: /absolute/path/to/image.jpg`
-            - `describe: ~/Pictures/photo.png`
+            **For image analysis**:
+            - Upload an image using the uploader above
+            - Ask questions like "What is in this image?" or "Describe this image"
+            - Or provide a file path: `caption: /path/to/image.jpg`
             """)
 
 
@@ -385,10 +425,36 @@ def render_main_content():
     with chat_container:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
+                if "image" in message:
+                    st.image(message["image"], caption="Uploaded Image", use_container_width=True)
                 st.markdown(message["content"])
     
-    # Chat input
-    query = st.chat_input("Type your message here...")
+    # Image upload section - right above chat input
+    uploaded_file = st.file_uploader(
+        "📷 Upload Image (Optional)",
+        type=['png', 'jpg', 'jpeg', 'gif', 'webp'],
+        help="Upload an image to ask questions about it",
+        key=f"image_uploader_{st.session_state.uploader_key}"
+    )
+    
+    if uploaded_file is not None:
+        # Store image in session state
+        image = Image.open(uploaded_file)
+        st.session_state.uploaded_image = image
+        # Show preview in a compact way
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.image(image, caption="📷 Image ready - ask a question about it!", use_container_width=True)
+        with col2:
+            if st.button("❌ Clear", use_container_width=True):
+                st.session_state.uploaded_image = None
+                st.session_state.uploader_key += 1
+                st.rerun()
+    else:
+        st.session_state.uploaded_image = None
+    
+    # Chat input - right below image uploader
+    query = st.chat_input("Type your message here... (or ask about the uploaded image)")
     
     # Check if example query was clicked
     if 'example_query' in st.session_state and st.session_state.example_query:
@@ -396,21 +462,34 @@ def render_main_content():
         st.session_state.example_query = None
     
     if query:
+        # Get uploaded image if available
+        image = st.session_state.get('uploaded_image', None)
+        
         # Add user message to chat
-        st.session_state.messages.append({"role": "user", "content": query})
+        message_content = {"role": "user", "content": query}
+        if image:
+            message_content["image"] = image
+        st.session_state.messages.append(message_content)
         
         # Display user message
         with st.chat_message("user"):
+            if image:
+                st.image(image, caption="Uploaded Image", use_container_width=True)
             st.markdown(query)
         
         # Get and display assistant response
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                response = run_async(send_query(query))
+                response = run_async(send_query(query, image=image))
                 st.markdown(response)
         
         # Add assistant response to chat
         st.session_state.messages.append({"role": "assistant", "content": response})
+        
+        # Clear uploaded image after use by incrementing uploader key
+        if image:
+            st.session_state.uploaded_image = None
+            st.session_state.uploader_key += 1  # This will reset the file uploader
         
         # Rerun to update chat
         st.rerun()
