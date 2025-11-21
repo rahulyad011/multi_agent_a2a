@@ -123,12 +123,35 @@ Orchestrator configuration: `config/orchestrator.yaml`
 
 ## 🛠️ Adding New Agents
 
+### For External Applications/REST APIs
+
+**Complete guide and sample implementation available!**
+
+1. **Review the sample**: `src/agents/external_api_agent/` - Complete working example
+2. **Read documentation**: `docs/INTEGRATING_EXTERNAL_APPS.md` - Step-by-step guide
+3. **Use checklist**: `docs/INTEGRATION_CHECKLIST.md` - Integration checklist
+
+**Quick start:**
+```bash
+# Copy sample implementation
+cp -r src/agents/external_api_agent src/agents/your_agent_name
+
+# Modify agent.py for your API
+# Update config/agents/your_agent_name.yaml
+# Register in config/orchestrator.yaml
+```
+
+### For New Agents (General)
+
 1. Create agent directory: `src/agents/your_agent/`
 2. Create three files: `agent.py`, `executor.py`, `main.py`
 3. Create config: `config/agents/your_agent.yaml`
 4. Add to orchestrator config: `config/orchestrator.yaml`
 
-See existing agents for reference.
+See existing agents for reference:
+- `iris_classifier/` - ML model integration
+- `external_api_agent/` - REST API integration
+- `simple_rag/` - Vector database integration
 
 ## 📦 Dependencies
 

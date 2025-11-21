@@ -1,0 +1,34 @@
+agent:
+  name: "External API Agent"
+  description: "Sample agent demonstrating how to integrate an external REST API endpoint with the orchestrator"
+  version: "1.0.0"
+  port: 10006
+  url: "http://localhost:10006"
+  
+  capabilities:
+    streaming: true
+    input_modes: ["text"]
+    output_modes: ["text"]
+  
+  skills:
+    - id: "external_api_call"
+      name: "External API Integration"
+      description: "Call external REST API endpoints and integrate with orchestrator workflow"
+      tags: ["api", "rest", "http", "integration", "external"]
+      examples:
+        - "Query external API with: {'data': 'example'}"
+        - "Call API endpoint"
+        - "Make API request"
+  
+  agent_config:
+    # Configuration for your external API
+    api_url: "${EXTERNAL_API_URL:http://localhost:8000/api/predict}"
+    api_key: "${EXTERNAL_API_KEY:}"
+    timeout: 30.0
+    headers:
+      Content-Type: "application/json"
+    # Example: For authentication
+    # headers:
+    #   Authorization: "Bearer ${API_KEY}"
+    #   X-API-Key: "${API_KEY}"
+
