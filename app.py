@@ -357,6 +357,17 @@ def render_sidebar():
             if st.button(f"📷 {example}", key=f"img_{example}", use_container_width=True):
                 st.session_state.example_query = example
         
+        st.markdown("**Iris Classification:**")
+        iris_examples = [
+            "5.1 3.5 1.4 0.2",
+            "[6.5, 3.0, 5.2, 2.0]",
+            '{"sepal_length": 5.9, "sepal_width": 3.0, "petal_length": 4.2, "petal_width": 1.5}',
+            "Classify iris with sepal length 5.5, sepal width 2.5, petal length 4.0, petal width 1.3"
+        ]
+        for example in iris_examples:
+            if st.button(f"🌺 {example}", key=f"iris_{example}", use_container_width=True):
+                st.session_state.example_query = example
+        
         # Instructions
         st.markdown("---")
         st.markdown("### 📖 Instructions")
