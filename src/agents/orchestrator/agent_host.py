@@ -139,14 +139,29 @@ class HostOrchestrator:
             return
         
         print(f"[DEBUG] Discovering {len(self.remote_agent_urls)} remote agents...")
+        print(f"[DEBUG] Agent URLs: {self.remote_agent_urls}")
         
-        async with asyncio.TaskGroup() as task_group:
-            for url in self.remote_agent_urls:
-                task_group.create_task(self.retrieve_agent_card(url))
+        # Use gather instead of TaskGroup to allow individual failures
+        tasks = []
+        for url in self.remote_agent_urls:
+            tasks.append(self.retrieve_agent_card(url))
+        
+        # Gather all tasks, but don't fail if one fails
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Log any exceptions
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                print(f"[DEBUG] WARNING: Agent discovery failed for {self.remote_agent_urls[i]}: {result}")
         
         self._agents_initialized = True
         print(f"[DEBUG] Agent discovery complete. Found {len(self.cards)} agents")
         print(f"[DEBUG] Available agents: {list(self.cards.keys())}")
+        
+        if len(self.cards) == 0:
+            print(f"[DEBUG] WARNING: No agents were discovered! Check that agents are running.")
+        elif len(self.cards) < len(self.remote_agent_urls):
+            print(f"[DEBUG] WARNING: Only {len(self.cards)}/{len(self.remote_agent_urls)} agents discovered.")
     
     async def init_remote_agents(self, remote_agent_urls: list[str]):
         """Initialize connections to remote agents by fetching their agent cards.
@@ -173,7 +188,10 @@ class HostOrchestrator:
             print(f"[DEBUG] Successfully registered agent: {card.name}")
         except Exception as e:
             print(f"[DEBUG] ERROR: Failed to fetch agent card from {url}: {e}")
-            raise
+            import traceback
+            traceback.print_exc()
+            # Don't raise - allow other agents to be discovered even if one fails
+            print(f"[DEBUG] WARNING: Continuing with other agents despite failure to fetch {url}")
 
     def register_agent_card(self, card: AgentCard):
         """Register a remote agent and create connection.
@@ -210,8 +228,26 @@ class HostOrchestrator:
         if self.cards:
             for card in self.cards.values():
                 agents_list += f"\n- **{card.name}**: {card.description}"
+                # Add skills information if available
+                if card.skills:
+                    for skill in card.skills:
+                        agents_list += f"\n  - Skill: {skill.description}"
         else:
             agents_list = "\n(Agents will be discovered on first query)"
+        
+        # Build guidelines based on available agents
+        guidelines = []
+        agent_names = [card.name for card in self.cards.values()]
+        
+        if "Simple RAG Agent" in agent_names:
+            guidelines.append("- For questions about documents, programming, concepts → use \"Simple RAG Agent\"")
+        if "Image Captioning Agent" in agent_names:
+            guidelines.append("- For image captioning or image analysis → use \"Image Captioning Agent\"")
+        if "Iris Classifier Agent" in agent_names:
+            guidelines.append("- For iris flower classification, ML predictions, or queries with numeric features (sepal_length, sepal_width, petal_length, petal_width) → use \"Iris Classifier Agent\"")
+            guidelines.append("- For JSON queries containing numeric features like {\"sepal_length\": X, \"sepal_width\": Y, \"petal_length\": Z, \"petal_width\": W} → use \"Iris Classifier Agent\"")
+        
+        guidelines_text = "\n".join(guidelines) if guidelines else "- Choose the agent that best matches the query intent"
         
         return f"""You are an expert orchestrator that intelligently routes user requests to specialized AI agents.
 
@@ -228,12 +264,44 @@ Respond ONLY with a JSON object in this exact format:
 }}
 
 **Guidelines:**
-- For questions about documents, programming, concepts → use "Simple RAG Agent"
-- For image captioning or image analysis → use "Image Captioning Agent"
+{guidelines_text}
 - Choose the agent that best matches the query intent
 - If no agent is appropriate, use "none"
+
+**Important:** If the query contains JSON with numeric features like sepal_length, sepal_width, petal_length, petal_width, it is definitely an iris classification request and should go to "Iris Classifier Agent".
 """
 
+    def _is_iris_classification_query(self, query: str) -> bool:
+        """Check if query is an iris classification request.
+        
+        Args:
+            query: User query string
+            
+        Returns:
+            True if query appears to be an iris classification request
+        """
+        query_lower = query.lower()
+        iris_features = ['sepal_length', 'sepal_width', 'petal_length', 'petal_width']
+        
+        # Check if query contains iris feature names
+        has_iris_features = any(feature in query_lower for feature in iris_features)
+        
+        # Check if query is JSON with numeric values
+        try:
+            import json
+            data = json.loads(query.strip())
+            if isinstance(data, dict):
+                # Check if it has iris feature keys
+                has_keys = any(key in data for key in iris_features)
+                # Check if values are numeric
+                has_numeric = any(isinstance(v, (int, float)) for v in data.values())
+                if has_keys and has_numeric:
+                    return True
+        except (json.JSONDecodeError, AttributeError):
+            pass
+        
+        return has_iris_features
+    
     async def route_query(self, query: str, original_message: Optional[Message] = None) -> AsyncGenerator[dict[str, Any], None]:
         """Route a query to the appropriate agent using LLM.
         
@@ -252,6 +320,19 @@ Respond ONLY with a JSON object in this exact format:
         if not self.remote_agent_connections:
             yield {'content': "⚠️ No agents are available. Please ensure agents are running.", 'done': False}
             yield {'content': '', 'done': True}
+            return
+        
+        # Check for iris classification query (fallback detection)
+        iris_agent_name = None
+        for card_name in self.cards.keys():
+            if "iris" in card_name.lower() or "classifier" in card_name.lower():
+                iris_agent_name = card_name
+                break
+        
+        if iris_agent_name and self._is_iris_classification_query(query):
+            print(f"[DEBUG] Detected iris classification query, routing directly to {iris_agent_name}")
+            async for chunk in self._send_to_agent(iris_agent_name, query, original_message=original_message):
+                yield chunk
             return
         
         try:

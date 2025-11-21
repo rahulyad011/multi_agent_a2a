@@ -34,6 +34,7 @@ echo ""
 all_running=true
 check_agent 10002 "RAG Agent" || all_running=false
 check_agent 10004 "Image Caption Agent" || all_running=false
+check_agent 10005 "Iris Classifier Agent" || all_running=false
 check_agent 10003 "Orchestrator" || all_running=false
 
 echo ""

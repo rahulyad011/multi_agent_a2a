@@ -1,0 +1,27 @@
+agent:
+  name: "Image Captioning Agent"
+  description: "An AI agent that generates descriptive captions for images using the BLIP vision model"
+  version: "1.0.0"
+  port: 10004
+  url: "http://localhost:10004"
+  
+  capabilities:
+    streaming: true
+    input_modes: ["text"]
+    output_modes: ["text"]
+  
+  skills:
+    - id: "image_captioning"
+      name: "Image Captioning"
+      description: "Generate descriptive captions for images using AI vision models"
+      tags: ["image", "caption", "vision", "ai", "blip", "computer-vision"]
+      examples:
+        - "caption: /path/to/image.jpg"
+        - "/Users/username/Pictures/photo.png"
+        - "describe: ~/Downloads/sunset.jpg"
+        - "What is in this image?"
+  
+  agent_config:
+    model_name: "Salesforce/blip-image-captioning-base"
+    device: "auto"  # auto, cpu, or cuda
+

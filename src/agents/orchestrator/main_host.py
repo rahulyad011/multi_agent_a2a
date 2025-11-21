@@ -48,39 +48,50 @@ if __name__ == '__main__':
     print(f"[DEBUG] Agent URL: {agent_card.url}")
     print(f"[DEBUG] Streaming enabled: {agent_card.capabilities.streaming}")
     
+    # Load orchestrator configuration
+    from src.utils.config_loader import ConfigLoader
+    config_loader = ConfigLoader()
+    orchestrator_config = config_loader.get_orchestrator_config()
+    
+    # Get remote agent URLs from config
+    remote_agent_urls = orchestrator_config.get('remote_agent_urls', [
+        "http://localhost:10002",  # RAG Agent
+        "http://localhost:10004",  # Image Caption Agent
+    ])
+    
+    # Get LLM configuration from config
+    llm_config = orchestrator_config.get('llm', {})
+    model_name = llm_config.get('model_name', os.getenv('LITELLM_MODEL', 'gemini/gemini-2.0-flash-001'))
+    
     # Check if OCI GenAI is configured
     llm_callable = None
-    model_name = os.getenv('LITELLM_MODEL', 'gemini/gemini-2.0-flash-001')
     
-    # If OCI environment variables are set, use OCI GenAI
-    if os.getenv('OCI_COMPARTMENT_ID') and os.getenv('OCI_GENAI_ENDPOINT'):
+    # Check for OCI GenAI configuration
+    oci_config = llm_config.get('oci', {})
+    if oci_config.get('enabled', False) and os.getenv('OCI_COMPARTMENT_ID') and os.getenv('OCI_GENAI_ENDPOINT'):
         try:
             import oci
             from src.utils.oci_llm import configure_llm_chat
             
             # Load OCI config
-            oci_config = oci.config.from_file()
+            oci_config_obj = oci.config.from_file()
             
             # Configure OCI GenAI LLM
             llm_callable = configure_llm_chat(
-                config=oci_config,
-                model_id=os.getenv('OCI_MODEL_ID', 'cohere.command-r-plus'),
-                service_endpoint=os.getenv('OCI_GENAI_ENDPOINT'),
-                compartment_id=os.getenv('OCI_COMPARTMENT_ID'),
-                max_tokens=int(os.getenv('OCI_MAX_TOKENS', '2000'))
+                config=oci_config_obj,
+                model_id=oci_config.get('model_id', os.getenv('OCI_MODEL_ID', 'cohere.command-r-plus')),
+                service_endpoint=oci_config.get('endpoint', os.getenv('OCI_GENAI_ENDPOINT')),
+                compartment_id=oci_config.get('compartment_id', os.getenv('OCI_COMPARTMENT_ID')),
+                max_tokens=int(oci_config.get('max_tokens', os.getenv('OCI_MAX_TOKENS', '2000')))
             )
-            print(f"[DEBUG] Using OCI GenAI: {os.getenv('OCI_MODEL_ID', 'cohere.command-r-plus')}")
+            print(f"[DEBUG] Using OCI GenAI: {oci_config.get('model_id', os.getenv('OCI_MODEL_ID', 'cohere.command-r-plus'))}")
         except Exception as e:
             print(f"[DEBUG] Warning: Could not configure OCI GenAI: {e}")
             print(f"[DEBUG] Falling back to LiteLLM with model: {model_name}")
+            llm_callable = None
     else:
         print(f"[DEBUG] LLM Model: {model_name}")
     
-    # Configure remote agents
-    remote_agent_urls = [
-        "http://localhost:10002",  # RAG Agent
-        "http://localhost:10004",  # Image Caption Agent
-    ]
     print(f"[DEBUG] Remote Agents: {remote_agent_urls}")
     
     # Create request handler with the host orchestrator agent executor
@@ -114,8 +125,8 @@ if __name__ == '__main__':
         print(f"   Model: {model_name}")
     print("")
     print("🔗 Connected Agents (A2A Protocol):")
-    print("   • RAG Agent: http://localhost:10002")
-    print("   • Image Caption Agent: http://localhost:10004")
+    for url in remote_agent_urls:
+        print(f"   • {url}")
     print("")
     print("💡 The LLM will automatically route queries to the right agent!")
     print("=" * 60)

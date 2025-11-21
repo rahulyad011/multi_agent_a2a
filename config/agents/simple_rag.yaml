@@ -1,0 +1,28 @@
+agent:
+  name: "Simple RAG Agent"
+  description: "A simple RAG agent that uses ChromaDB to search through documents and provide relevant information"
+  version: "1.0.0"
+  port: 10002
+  url: "http://localhost:10002"
+  
+  capabilities:
+    streaming: true
+    input_modes: ["text"]
+    output_modes: ["text"]
+  
+  skills:
+    - id: "document_search"
+      name: "Document Search"
+      description: "Search through documents using vector similarity to find relevant information"
+      tags: ["rag", "search", "documents", "vector-db", "chromadb"]
+      examples:
+        - "What do you know about Python?"
+        - "Tell me about machine learning"
+        - "Explain the A2A protocol"
+        - "What is ChromaDB?"
+  
+  agent_config:
+    persist_directory: "./chroma_db"
+    embedding_model: "all-MiniLM-L6-v2"
+    collection_name: "documents"
+

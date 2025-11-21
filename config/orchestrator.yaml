@@ -1,0 +1,29 @@
+orchestrator:
+  name: "Host Orchestrator Agent"
+  description: "LLM-powered host orchestrator that intelligently routes queries to specialized agents via A2A protocol"
+  version: "2.0.0"
+  port: 10003
+  url: "http://localhost:10003"
+  
+  # Remote agents to connect to
+  remote_agent_urls:
+    - "http://localhost:10002"  # Simple RAG Agent
+    - "http://localhost:10004"  # Image Caption Agent
+    - "http://localhost:10005"  # Iris Classifier Agent
+  
+  # LLM configuration
+  llm:
+    model_name: "${LITELLM_MODEL:gemini/gemini-2.0-flash-001}"
+    # OCI GenAI configuration (optional)
+    oci:
+      enabled: false
+      model_id: "${OCI_MODEL_ID:cohere.command-r-plus}"
+      endpoint: "${OCI_GENAI_ENDPOINT:}"
+      compartment_id: "${OCI_COMPARTMENT_ID:}"
+      max_tokens: "${OCI_MAX_TOKENS:2000}"
+  
+  # Routing configuration
+  routing:
+    temperature: 0.3
+    enable_summarization: true
+

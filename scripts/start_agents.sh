@@ -20,6 +20,7 @@ LOG_DIR="$PROJECT_ROOT/logs"
 mkdir -p "$LOG_DIR"
 RAG_LOG="$LOG_DIR/rag_agent.log"
 IMAGE_LOG="$LOG_DIR/image_caption_agent.log"
+IRIS_LOG="$LOG_DIR/iris_classifier_agent.log"
 ORCH_LOG="$LOG_DIR/orchestrator.log"
 
 # PID files
@@ -27,6 +28,7 @@ PID_DIR="$PROJECT_ROOT/.pids"
 mkdir -p "$PID_DIR"
 RAG_PID="$PID_DIR/rag_agent.pid"
 IMAGE_PID="$PID_DIR/image_caption_agent.pid"
+IRIS_PID="$PID_DIR/iris_classifier_agent.pid"
 
 echo "=========================================="
 echo "  Multi-Agent A2A System - Agent Starter"
@@ -116,9 +118,15 @@ cleanup() {
         rm -f "$IMAGE_PID"
     fi
     
+    if [ -f "$IRIS_PID" ]; then
+        kill $(cat "$IRIS_PID") 2>/dev/null || true
+        rm -f "$IRIS_PID"
+    fi
+    
     # Kill any remaining processes on our ports
     kill_port 10002
     kill_port 10004
+    kill_port 10005
     kill_port 10003
     
     echo -e "${GREEN}All agents stopped.${NC}"
@@ -135,6 +143,9 @@ if check_port 10002; then
 fi
 if check_port 10004; then
     kill_port 10004
+fi
+if check_port 10005; then
+    kill_port 10005
 fi
 if check_port 10003; then
     kill_port 10003
@@ -188,6 +199,27 @@ fi
 
 echo ""
 
+# Start Iris Classifier Agent in background
+echo -e "${BLUE}3. Starting Iris Classifier Agent (port 10005)...${NC}"
+nohup uv run src/agents/iris_classifier/main.py > "$IRIS_LOG" 2>&1 &
+echo $! > "$IRIS_PID"
+echo -e "   Log: $IRIS_LOG"
+echo -e "   PID: $(cat $IRIS_PID)"
+
+# Wait for Iris Classifier agent to be ready
+if ! wait_for_agent "Iris Classifier Agent" 10005; then
+    echo -e "${RED}Failed to start Iris Classifier Agent. Check log: $IRIS_LOG${NC}"
+    cleanup
+fi
+
+# Test Iris Classifier agent
+if ! test_agent "Iris Classifier Agent" 10005; then
+    echo -e "${RED}Iris Classifier Agent health check failed. Check log: $IRIS_LOG${NC}"
+    cleanup
+fi
+
+echo ""
+
 # Give agents a moment to fully initialize
 echo -e "${BLUE}Allowing agents to fully initialize...${NC}"
 sleep 2
@@ -200,10 +232,12 @@ echo ""
 echo -e "${GREEN}Running agents:${NC}"
 echo "  • RAG Agent:           http://localhost:10002"
 echo "  • Image Caption Agent: http://localhost:10004"
+echo "  • Iris Classifier Agent: http://localhost:10005"
 echo ""
 echo -e "${BLUE}Logs:${NC}"
 echo "  • RAG Agent:           $RAG_LOG"
 echo "  • Image Caption Agent: $IMAGE_LOG"
+echo "  • Iris Classifier Agent: $IRIS_LOG"
 echo ""
 echo -e "${YELLOW}Next Steps:${NC}"
 echo "  1. Start Orchestrator (will show logs below)"

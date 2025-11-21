@@ -1,4 +1,4 @@
-"""Main entry point for the Image Captioning Agent server."""
+"""Main entry point for the Iris Classifier Agent server."""
 from a2a.server.apps import A2AStarletteApplication
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
@@ -7,7 +7,7 @@ from a2a.types import (
     AgentCard,
     AgentSkill,
 )
-from src.agents.image_caption.executor import ImageCaptioningAgentExecutor
+from src.agents.iris_classifier.executor import IrisClassifierAgentExecutor
 from src.utils.config_loader import ConfigLoader
 
 
@@ -18,15 +18,15 @@ def create_agent_card_from_config() -> AgentCard:
         AgentCard object
     """
     config_loader = ConfigLoader()
-    agent_config = config_loader.load_agent_config("image_caption")
+    agent_config = config_loader.load_agent_config("iris_classifier")
     
     # Convert skills from config
     skills = []
     for skill_data in agent_config.skills:
         skill = AgentSkill(
-            id=skill_data.get('id', 'image_captioning'),
-            name=skill_data.get('name', 'Image Captioning'),
-            description=skill_data.get('description', 'Generate captions for images'),
+            id=skill_data.get('id', 'iris_classification'),
+            name=skill_data.get('name', 'Iris Classification'),
+            description=skill_data.get('description', 'Classify iris flowers'),
             tags=skill_data.get('tags', []),
             examples=skill_data.get('examples', []),
         )
@@ -50,7 +50,7 @@ def create_agent_card_from_config() -> AgentCard:
 
 
 if __name__ == '__main__':
-    print("[DEBUG] Starting Image Captioning Agent server...")
+    print("[DEBUG] Starting Iris Classifier Agent server...")
     
     # Load configuration
     try:
@@ -62,21 +62,21 @@ if __name__ == '__main__':
         print(f"[DEBUG] Warning: Could not load config, using defaults: {e}")
         # Fallback to default configuration
         skill = AgentSkill(
-            id='image_captioning',
-            name='Image Captioning',
-            description='Generate descriptive captions for images using AI vision models',
-            tags=['image', 'caption', 'vision', 'ai', 'blip'],
+            id='iris_classification',
+            name='Iris Flower Classification',
+            description='Classify iris flowers into setosa, versicolor, or virginica using Random Forest',
+            tags=['ml', 'classification', 'iris', 'random-forest', 'scikit-learn'],
             examples=[
-                'caption: /path/to/image.jpg',
-                '/Users/username/Pictures/photo.png',
-                'describe: ~/Downloads/sunset.jpg'
+                '{"sepal_length": 5.1, "sepal_width": 3.5, "petal_length": 1.4, "petal_width": 0.2}',
+                '[5.1, 3.5, 1.4, 0.2]',
+                '5.1 3.5 1.4 0.2',
             ],
         )
         
         agent_card = AgentCard(
-            name='Image Captioning Agent',
-            description='An AI agent that generates descriptive captions for images using the BLIP vision model',
-            url='http://localhost:10004/',
+            name='Iris Classifier Agent',
+            description='ML Pipeline Agent for Iris flower classification using Random Forest',
+            url='http://localhost:10005/',
             version='1.0.0',
             default_input_modes=['text'],
             default_output_modes=['text'],
@@ -84,10 +84,10 @@ if __name__ == '__main__':
             skills=[skill],
         )
     
-    # Create request handler with the image captioning agent executor
+    # Create request handler with the agent executor
     print("[DEBUG] Creating request handler...")
     request_handler = DefaultRequestHandler(
-        agent_executor=ImageCaptioningAgentExecutor(),
+        agent_executor=IrisClassifierAgentExecutor(),
         task_store=InMemoryTaskStore(),
     )
     
@@ -100,16 +100,25 @@ if __name__ == '__main__':
     # Get port from config or use default
     try:
         config_loader = ConfigLoader()
-        agent_config = config_loader.load_agent_config("image_caption")
+        agent_config = config_loader.load_agent_config("iris_classifier")
         port = agent_config.port
     except Exception:
-        port = 10004  # Default port
+        port = 10005  # Default port
     
     # Start the server
     print(f"[DEBUG] Starting server on http://0.0.0.0:{port}")
     print("=" * 60)
-    print("Image Captioning Agent is running!")
+    print("🌺 Iris Classifier Agent is running!")
+    print("=" * 60)
     print(f"Access the agent at: http://localhost:{port}")
+    print()
+    print("💡 Example queries:")
+    print('  - {"sepal_length": 5.1, "sepal_width": 3.5, "petal_length": 1.4, "petal_width": 0.2}')
+    print('  - [5.1, 3.5, 1.4, 0.2]')
+    print('  - 5.1 3.5 1.4 0.2')
+    print()
+    print("⚠️  Note: Make sure to train the model first:")
+    print("   python src/agents/iris_classifier/train.py")
     print("=" * 60)
     
     import uvicorn
